@@ -2,23 +2,14 @@ import Cardano from "../serialization-lib";
 import { fromHex } from "../../utils/converter";
 
 class Wallet {
+
   async enable(name) {
-    if (name === "ccvault") {
-      const instance = await window.cardano?.ccvault?.enable();
-      if (instance) {
-        this._provider = instance;
-        return true;
-      }
-    } else if (name === "gerowallet") {
-      const instance = await window.cardano?.gerowallet?.enable();
-      if (instance) {
-        this._provider = instance;
-        return true;
-      }
-    } else if (name === "nami" || name === false) {
-      const isEnabled = await window.cardano?.enable();
+    this.availableWallets = [];
+    if (name === "nami" || name === false) {
+      const isEnabled = await window.cardano?.nami?.enable();
       if (isEnabled) {
-        this._provider = window.cardano;
+        this._provider = isEnabled;
+        this.availableWallets.push("nami");
         return true;
       }
     }
@@ -26,33 +17,24 @@ class Wallet {
   }
 
   async getAvailableWallets() {
-    let availableWallets = [];
 
-    if (window.cardano === undefined) {
-      return availableWallets;
-    }
+    await this.enable(false)
 
-    if (window.cardano.ccvault) {
-      availableWallets.push("ccvault");
-    }
 
-    if (window.cardano.gerowallet) {
-      availableWallets.push("gerowallet");
-    }
-
-    if (window.cardano.enable) {
-      availableWallets.push("nami");
-    }
-
-    return availableWallets;
+    return this.availableWallets;
   }
 
   async getBalance() {
     return await this._provider.getBalance();
   }
 
+
   async getCollateral() {
-    return await this._provider.getCollateral();
+    if (!this.api) return null;
+
+    const hexCollateral = await this._provider.experimental.getCollateral();
+    const collateral = hexCollateral.map((utxo) => Cardano.TransactionUnspentOutput.from_bytes(fromHex(utxo)));
+    return collateral;
   }
 
   async getNetworkId() {
