@@ -1,65 +1,3 @@
-// import React, { useEffect } from "react";
-// import { ErrorBoundary } from "react-error-boundary";
-// import { useHistory } from "react-router-dom";
-// import SweetAlert from "react-bootstrap-sweetalert";
-// import { useDispatch, useSelector } from "react-redux";
-// import RenderRoutes from "routes";
-
-// import { load_collection } from "store/collection/api";
-// import { clear_error } from "store/error/errorActions";
-
-// import "@fortawesome/fontawesome-free/css/all.min.css";
-// import "@creativebulma/bulma-tooltip/dist/bulma-tooltip.min.css";
-// import "./App.css";
-
-// const App = () => {
-//   const dispatch = useDispatch();
-//   const history = useHistory();
-//   const state_collection = useSelector((state) => state.collection);
-//   const state_error = useSelector((state) => state.error);
-
-//   useEffect(() => {
-//     if (!state_collection.loaded && !state_collection.loading) {
-//       dispatch(load_collection((res) => {}));
-//     }
-//   }, [state_collection.loaded, state_collection.loading]);
-
-//   return (
-//     <ErrorBoundary
-//       FallbackComponent={ErrorHandler}
-//       onReset={() => history.push("/")}
-//     >
-//       <RenderRoutes />
-//       <SweetAlert
-//         title=""
-//         show={state_error.show}
-//         error
-//         confirmBtnText="Oops!"
-//         onConfirm={() => dispatch(clear_error())}
-//         confirmBtnCssClass="button is-danger"
-//       >
-//         {state_error.message}
-//       </SweetAlert>
-//     </ErrorBoundary>
-//   );
-// };
-
-// const ErrorHandler = ({ error, componentStack, resetErrorBoundary }) => {
-//   return (
-//     <SweetAlert
-//         show
-//         error
-//         title="Oops!"
-//         confirmBtnText="Go To Homepage"
-//         onConfirm={resetErrorBoundary}
-//         confirmBtnCssClass="button is-danger"
-//       >
-//         An error occured while attempting to display this page.
-//     </SweetAlert>
-//   );
-// };
-
-// export default App;
 import React from 'react'
 // import { start, bid, close } from "../../../cardano/plutus/contract"
 import { Tab, Tabs, RadioGroup, Radio, FormGroup, InputGroup, NumericInput } from "@blueprintjs/core";
@@ -69,6 +7,9 @@ import "../node_modules/normalize.css/normalize.css";
 import
 Cardano
   from "./cardano/serialization-lib/index"
+  import { contractAddress } from "./cardano/market-contract/validator";
+  import { set_error } from "./store/error/errorActions";
+  import { resolveError } from "./utils/resolver";
 import {
   assetsToValue,
   fromAscii,
@@ -77,12 +18,25 @@ import {
   lovelacePercentage,
   toBytesNum,
   toHex,
-  valueToAssets,
+  fromBech32 
 } from "./utils/converter";
-import {Wallet} from "./cardano/wallet/index"
-import {getLockedUtxos,getAssetDetails} from "./cardano/blockfrost-api"
-import{deserializeSale } from "./cardano/market-contract/datums"
+import { createEvent, createDatum } from "./utils/factory";
+import {
+  createTxUnspentOutput,
+  serializeTxUnspentOutput,
+  valueToAssets,
+} from "./cardano/transaction";
+import Wallet from "./cardano/wallet/index"
+import { getLockedUtxos, getAssetDetails, getTxMetadata, getLockedUtxosByAsset } from "./cardano/blockfrost-api"
+import { deserializeSale, serializeSale } from "./cardano/market-contract/datums"
+import { purchaseAsset } from "./cardano/market-contract/index"
 import { blake2b } from "blakejs";
+import { WALLET_STATE, MARKET_TYPE } from "./store/wallet/walletTypes";
+import {
+  walletConnected,
+  setWalletLoading,
+  setWalletData,
+} from "./store/wallet/walletActions";
 let Buffer = require('buffer/').Buffer
 let blake = require('blakejs')
 
@@ -570,20 +524,26 @@ export default class App extends React.Component {
         await this.getChangeAddress();
         await this.getRewardAddresses();
         await this.getUsedAddresses();
-        const listed= await getLockedUtxos('addr_test1wpupz00jfglpk2547x03s2mptq779w9u7fr92ha0x8g5kxq7pgcf2',{})
+        const listed = await getLockedUtxos('addr_test1wpupz00jfglpk2547x03s2mptq779w9u7fr92ha0x8g5kxq7pgcf2', {})
         console.log(listed)
-        const asset0=listed[0]['amount']['1']['unit']
+        const asset0 = listed[3]['amount']['1']['unit']
         console.log(asset0);
-        const assetDetails= await getAssetDetails(asset0)
+        const assetDetails = await getAssetDetails(asset0)
         console.log(assetDetails);
-        const txhash0=listed[0]['tx_hash']
-        const datumhash0=listed[0]['data_hash']
+        const txhash0 = listed[3]['tx_hash']
         console.log(txhash0);
-        console.log(datumhash0);
-        const datumSale=await Cardano.Instance.PlutusData.from_bytes(fromHex(datumhash0))
+        const txmetadata = await getTxMetadata(txhash0)
+        console.log(txmetadata);
+        // const datumhashraw0=listed[3]['data_hash']
+        // console.log(datumhashraw0);
+        // const datumhash0=await Cardano.Instance.ScriptDataHash.from_bytes(fromHex(datumhashraw0)).free()
+        // console.log(datumhash0);
+        const saleDetails = txmetadata["0"]["json_metadata"]
+        console.log(saleDetails);
+        const datumSale = serializeSale(saleDetails)
         console.log(datumSale);
-        const selldetails=deserializeSale(datumSale)
-        console.log(selldetails);
+        const verifyDetails = deserializeSale(datumSale)
+        console.log(verifyDetails);
       }
     } catch (err) {
       console.log(err)
@@ -1161,7 +1121,113 @@ export default class App extends React.Component {
               <button style={{ padding: "10px" }} onClick={() => {
                 const shelleyChangeAddress = Cardano.Instance.Address.from_bech32(this.state.changeAddress)
                 const sellerBaseAddress = Cardano.Instance.BaseAddress.from_address(shelleyChangeAddress)
+                const purchaseToken = (wallet, asset, callback) => async (dispatch) => {
+                  try {
 
+
+                    const walletUtxos = await Wallet.getUtxos();
+                    const contractVersion = "v1"//resolveContractVersion(asset);
+
+                    const assetUtxo = (
+                      await getLockedUtxosByAsset(
+                        contractAddress(contractVersion).to_bech32(),
+                        asset.details.asset
+                      )
+                    ).find((utxo) => utxo.data_hash === asset.status.datumHash);
+
+                    if (assetUtxo) {
+                      const txHash = await purchaseAsset(
+                        asset.status.datum,
+                        {
+                          address: fromBech32(wallet.data.address),
+                          utxos: walletUtxos,
+                        },
+                        {
+                          seller: fromBech32(asset.status.submittedBy),
+                          artist: fromBech32(asset.status.artistAddress),
+                          market: fromBech32(process.env.REACT_APP_MARTIFY_ADDRESS),
+                        },
+                        createTxUnspentOutput(contractAddress(contractVersion), assetUtxo),
+                        contractVersion
+                      );
+
+                      if (txHash) {
+                        // const unlockedAsset = await unlockAsset(asset, {
+                        //   txHash: txHash,
+                        //   address: wallet.data.address,
+                        // });
+
+                        const event = createEvent(
+                          MARKET_TYPE.PURCHASE,
+                          asset.status.datum,
+                          txHash,
+                          wallet.data.address
+                        );
+
+                        // const updatedWallet = await addWalletEvent(wallet.data, event);
+                        // const updatedAsset = await addAssetEvent(unlockedAsset, event);
+
+                        // Update the seller's wallet
+                        //const sellerWalletObj = await getWallet(asset.status.submittedBy);
+
+                        // const soldEvent = createEvent(
+                        //   MARKET_TYPE.SOLD,
+                        //   asset.status.datum,
+                        //   txHash,
+                        //   wallet.data.address
+                        // );
+
+                        // await delistWalletAsset(sellerWalletObj, updatedAsset, soldEvent);
+                        // ----------------------------------------
+
+                        // const output = {
+                        //   policy_id: asset.details.policyId,
+                        //   listing: {
+                        //     [updatedAsset.details.asset]: updatedAsset,
+                        //   },
+                        // };
+
+                        dispatch(setWalletLoading(false));
+                        // dispatch(setWalletData(updatedWallet));
+                        // dispatch(collections_add_tokens(output));
+                        callback({ success: true, type: MARKET_TYPE.PURCHASE });
+                      } else {
+                        callback({ success: false });
+                        dispatch(setWalletLoading(false));
+                        dispatch(
+                          set_error({
+                            message: resolveError("TRANSACTION_FAILED", "Purchasing Asset"),
+                            detail: null,
+                          })
+                        );
+                      }
+                    } else {
+                      callback({ success: false });
+                      dispatch(setWalletLoading(false));
+                      dispatch(
+                        set_error({
+                          message: resolveError(
+                            "TRANSACTION_NOT_CONFIRMED",
+                            "Purchasing Asset"
+                          ),
+                          detail: null,
+                        })
+                      );
+                    }
+                  } catch (error) {
+                    console.error(
+                      `Unexpected error in purchaseToken. [Message: ${error.message}]`
+                    );
+                    callback({ success: false });
+                    dispatch(setWalletLoading(false));
+                    dispatch(
+                      set_error({
+                        message: resolveError(error.message, "Purchasing Asset"),
+                        detail: error,
+                      })
+                    );
+                  }
+                };
                 // close(
                 //     'a89c237e2ef5ca2a6dde7ba62f6f06c1b4afb24cd55a7a1a048da34201'
                 // )
