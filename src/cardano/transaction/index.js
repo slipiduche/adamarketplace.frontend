@@ -78,7 +78,7 @@ export const finalizeTx = async ({
 }) => {
   const Parameters = getProtocolParameters();
   const transactionWitnessSet = Cardano.Instance.TransactionWitnessSet.new();
-
+  
   CoinSelection.setProtocolParameters(
     Parameters.coinsPerUtxoWord,
     Parameters.linearFee.minFeeA,
@@ -145,7 +145,7 @@ export const finalizeTx = async ({
   }
 
   const changeMultiAssets = change.multiasset();
-
+  console.log('is too big?');
   // check if change value is too big for single output
   if (
     changeMultiAssets &&
@@ -205,7 +205,7 @@ export const finalizeTx = async ({
   } catch (error) {
     throw new Error("INPUTS_EXHAUSTED");
   }
-
+  console.log('building body');
   const txBody = txBuilder.build();
 
   const tx = Cardano.Instance.Transaction.new(
@@ -245,7 +245,7 @@ export const createTxOutput = (address, value, { datum } = {}) => {
   );
 
   if (minAda.compare(value.coin()) === 1) value.set_coin(minAda);
-
+  console.log('creating');
   const output = Cardano.Instance.TransactionOutput.new(address, value);
 
   if (datum) {

@@ -529,15 +529,16 @@ export default class App extends React.Component {
         await this.getUsedAddresses();
         const listed = await getLockedUtxos('addr_test1wpupz00jfglpk2547x03s2mptq779w9u7fr92ha0x8g5kxq7pgcf2', {})
         console.log(listed)
-        const asset = listed[3]['amount']['1']['unit']
+        const index=5
+        const asset = listed[index]['amount']['1']['unit']
         console.log(asset);
         const assetDetails = await getAssetDetails(asset)
         console.log(assetDetails);
-        const txhash0 = listed[3]['tx_hash']
+        const txhash0 = listed[index]['tx_hash']
         console.log(txhash0);
         const txmetadata = await getTxMetadata(txhash0)
         console.log(txmetadata);
-        const datumHash = listed[3]['data_hash']
+        const datumHash = listed[index]['data_hash']
         console.log(datumHash);
         //const datumhash0=await Cardano.Instance.ScriptDataHash.from_bytes(fromHex(datumhashraw0)).free()
         // console.log(datumhash0);
@@ -1177,31 +1178,14 @@ export default class App extends React.Component {
                       );
 
 
-                      // dispatch(setWalletLoading(false));
 
                       console.log({ success: true, type: MARKET_TYPE.PURCHASE, txHash });
                     } else {
                       console.log({ success: false });
-                      // dispatch(setWalletLoading(false));
-                      // dispatch(
-                      //   set_error({
-                      //     message: resolveError("TRANSACTION_FAILED", "Purchasing Asset"),
-                      //     detail: null,
-                      //   })
-                      // );
+
                     }
                   } else {
                     console.log({ success: false });
-                    // dispatch(setWalletLoading(false));
-                    // dispatch(
-                    //   set_error({
-                    //     message: resolveError(
-                    //       "TRANSACTION_NOT_CONFIRMED",
-                    //       "Purchasing Asset"
-                    //     ),
-                    //     detail: null,
-                    //   })
-                    // );
                   }
                 } catch (error) {
                   console.error(
