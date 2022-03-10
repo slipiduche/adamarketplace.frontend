@@ -17,21 +17,21 @@ export const walletExists = async (address) => {
 export const getWallet = async (address) => {
   try {
     if (address) {
-      const reference = doc(firestore, "wallets", address);
-      const snapshot = await getDoc(reference);
-      if (snapshot.exists()) {
-        return snapshot.data();
-      } else {
+      // const reference = doc(firestore, "wallets", address);
+      // const snapshot = await getDoc(reference);
+      // if (snapshot.exists()) {
+      //   return snapshot.data();
+      // } else {
         const wallet = {
           address,
           assets: {},
           events: [],
           market: {},
           offers: [],
-        };
-        await saveWallet(wallet, address);
+         };
+        // await saveWallet(wallet, address);
         return wallet;
-      }
+      //}
     }
   } catch (error) {
     console.error(`Unexpected error in getWallet. [Message: ${error.message}]`);

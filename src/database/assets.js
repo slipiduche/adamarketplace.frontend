@@ -49,13 +49,13 @@ export const addAssetOffer = async (asset, newOffer) => {
 export const getAsset = async (assetId) => {
   try {
     if (assetId) {
-      const reference = doc(firestore, "assets", assetId);
+      // const reference = doc(firestore, "assets", assetId);
 
-      const snapshot = await getDoc(reference);
+      // const snapshot = await getDoc(reference);
 
-      if (snapshot.exists()) {
-        return snapshot.data();
-      } else {
+      // if (snapshot.exists()) {
+      //   return snapshot.data();
+      // } else {
         const assetDetails = await getAssetDetails(assetId);
         if (assetDetails === undefined) return undefined;
 
@@ -66,10 +66,10 @@ export const getAsset = async (assetId) => {
           status: { locked: false },
         };
 
-        await saveAsset(asset);
+        //await saveAsset(asset);
 
         return asset;
-      }
+     // }
     }
   } catch (error) {
     console.error(`Unexpected error in getAsset. [Message: ${error.message}]`);
