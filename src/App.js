@@ -7,9 +7,9 @@ import "../node_modules/normalize.css/normalize.css";
 import
 Cardano
   from "./cardano/serialization-lib/index"
-  import { contractAddress } from "./cardano/market-contract/validator";
-  import { set_error } from "./store/error/errorActions";
-  import { resolveError } from "./utils/resolver";
+import { contractAddress } from "./cardano/market-contract/validator";
+import { set_error } from "./store/error/errorActions";
+import { resolveError } from "./utils/resolver";
 import {
   assetsToValue,
   fromAscii,
@@ -18,7 +18,7 @@ import {
   lovelacePercentage,
   toBytesNum,
   toHex,
-  fromBech32 
+  fromBech32
 } from "./utils/converter";
 import { createEvent, createDatum } from "./utils/factory";
 import {
@@ -1123,10 +1123,8 @@ export default class App extends React.Component {
                 const sellerBaseAddress = Cardano.Instance.BaseAddress.from_address(shelleyChangeAddress)
                 const purchaseToken = (wallet, asset, callback) => async (dispatch) => {
                   try {
-
-
                     const walletUtxos = await Wallet.getUtxos();
-                    const contractVersion = "v1"//resolveContractVersion(asset);
+                    const contractVersion = "v3"//resolveContractVersion(asset);
 
                     const assetUtxo = (
                       await getLockedUtxosByAsset(
@@ -1152,11 +1150,7 @@ export default class App extends React.Component {
                       );
 
                       if (txHash) {
-                        // const unlockedAsset = await unlockAsset(asset, {
-                        //   txHash: txHash,
-                        //   address: wallet.data.address,
-                        // });
-
+                        
                         const event = createEvent(
                           MARKET_TYPE.PURCHASE,
                           asset.status.datum,
@@ -1164,32 +1158,9 @@ export default class App extends React.Component {
                           wallet.data.address
                         );
 
-                        // const updatedWallet = await addWalletEvent(wallet.data, event);
-                        // const updatedAsset = await addAssetEvent(unlockedAsset, event);
-
-                        // Update the seller's wallet
-                        //const sellerWalletObj = await getWallet(asset.status.submittedBy);
-
-                        // const soldEvent = createEvent(
-                        //   MARKET_TYPE.SOLD,
-                        //   asset.status.datum,
-                        //   txHash,
-                        //   wallet.data.address
-                        // );
-
-                        // await delistWalletAsset(sellerWalletObj, updatedAsset, soldEvent);
-                        // ----------------------------------------
-
-                        // const output = {
-                        //   policy_id: asset.details.policyId,
-                        //   listing: {
-                        //     [updatedAsset.details.asset]: updatedAsset,
-                        //   },
-                        // };
-
+                        
                         dispatch(setWalletLoading(false));
-                        // dispatch(setWalletData(updatedWallet));
-                        // dispatch(collections_add_tokens(output));
+                       
                         callback({ success: true, type: MARKET_TYPE.PURCHASE });
                       } else {
                         callback({ success: false });
@@ -1228,6 +1199,10 @@ export default class App extends React.Component {
                     );
                   }
                 };
+                purchaseToken(
+                  { data: { address: this.state.changeAddress } }, { status: { datum: '' }, details: { asset: '' } }, () => { }
+
+                )
                 // close(
                 //     'a89c237e2ef5ca2a6dde7ba62f6f06c1b4afb24cd55a7a1a048da34201'
                 // )
