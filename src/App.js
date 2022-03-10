@@ -80,7 +80,10 @@ export default class App extends React.Component {
       transactionIndxLocked: 0,
       lovelaceLocked: 3000000,
       manualFee: 1480000,
-      aSellPrice: 10000000
+      aSellPrice: 10000000,
+      saleDetails: undefined,
+      datumHash: undefined,
+      asset: undefined
 
     }
 
@@ -526,17 +529,17 @@ export default class App extends React.Component {
         await this.getUsedAddresses();
         const listed = await getLockedUtxos('addr_test1wpupz00jfglpk2547x03s2mptq779w9u7fr92ha0x8g5kxq7pgcf2', {})
         console.log(listed)
-        const asset0 = listed[3]['amount']['1']['unit']
-        console.log(asset0);
-        const assetDetails = await getAssetDetails(asset0)
+        const asset = listed[3]['amount']['1']['unit']
+        console.log(asset);
+        const assetDetails = await getAssetDetails(asset)
         console.log(assetDetails);
         const txhash0 = listed[3]['tx_hash']
         console.log(txhash0);
         const txmetadata = await getTxMetadata(txhash0)
         console.log(txmetadata);
-        // const datumhashraw0=listed[3]['data_hash']
-        // console.log(datumhashraw0);
-        // const datumhash0=await Cardano.Instance.ScriptDataHash.from_bytes(fromHex(datumhashraw0)).free()
+        const datumHash = listed[3]['data_hash']
+        console.log(datumHash);
+        //const datumhash0=await Cardano.Instance.ScriptDataHash.from_bytes(fromHex(datumhashraw0)).free()
         // console.log(datumhash0);
         const saleDetails = txmetadata["0"]["json_metadata"]
         console.log(saleDetails);
@@ -544,6 +547,11 @@ export default class App extends React.Component {
         console.log(datumSale);
         const verifyDetails = deserializeSale(datumSale)
         console.log(verifyDetails);
+        console.log(assetDetails['policyId']);
+        console.log(assetDetails['assetName']);
+        this.setState({
+          saleDetails, datumHash, asset, assetPolicyIdHex: assetDetails['policyId'], assetNameHex: assetDetails['assetName']
+        })
       }
     } catch (err) {
       console.log(err)
@@ -1118,101 +1126,97 @@ export default class App extends React.Component {
                 />
               </FormGroup>
               {/* <button style={{ padding: "10px" }} onClick={this.buildRedeemTokenFromPlutusScript}>Run</button> */}
-              <button style={{ padding: "10px" }} onClick={() => {
+              <button style={{ padding: "10px" }} onClick={async () => {
+                console.log('press');
                 const shelleyChangeAddress = Cardano.Instance.Address.from_bech32(this.state.changeAddress)
                 const sellerBaseAddress = Cardano.Instance.BaseAddress.from_address(shelleyChangeAddress)
-                const purchaseToken = (wallet, asset, callback) => async (dispatch) => {
-                  try {
-                    const walletUtxos = await Wallet.getUtxos();
-                    const contractVersion = "v3"//resolveContractVersion(asset);
 
-                    const assetUtxo = (
-                      await getLockedUtxosByAsset(
-                        contractAddress(contractVersion).to_bech32(),
-                        asset.details.asset
-                      )
-                    ).find((utxo) => utxo.data_hash === asset.status.datumHash);
 
-                    if (assetUtxo) {
-                      const txHash = await purchaseAsset(
+                const wallet = {
+                  data: { address: this.state.changeAddress }
+                }
+                const asset = { status: { datum: this.state.saleDetails, datumHash: this.state.datumHash, submittedBy: this.state.changeAddress, artistAddress: this.state.changeAddress }, details: { asset: this.state.asset } }
+
+                try {
+                  console.log(wallet);
+                  console.log(asset);
+                  await Wallet.getAvailableWallets()
+                  const walletUtxos = await Wallet.getUtxos();
+                  const contractVersion = "v3"//resolveContractVersion(asset);
+                  console.log(walletUtxos);
+                  const assetUtxo = (
+                    await getLockedUtxosByAsset(
+                      contractAddress(contractVersion).to_bech32(),
+                      asset.details.asset
+                    )
+                  ).find((utxo) => utxo.data_hash === asset.status.datumHash);
+                  console.log(assetUtxo);
+                  if (assetUtxo) {
+                    const txHash = await purchaseAsset(
+                      asset.status.datum,
+                      {
+                        address: fromBech32(wallet.data.address),
+                        utxos: walletUtxos,
+                      },
+                      {
+                        seller: fromBech32(asset.status.submittedBy),
+                        artist: fromBech32(asset.status.artistAddress),
+                        market: fromBech32(process.env.REACT_APP_MARTIFY_ADDRESS),
+                      },
+                      createTxUnspentOutput(contractAddress(contractVersion), assetUtxo),
+                      contractVersion
+                    );
+
+                    if (txHash) {
+
+                      const event = createEvent(
+                        MARKET_TYPE.PURCHASE,
                         asset.status.datum,
-                        {
-                          address: fromBech32(wallet.data.address),
-                          utxos: walletUtxos,
-                        },
-                        {
-                          seller: fromBech32(asset.status.submittedBy),
-                          artist: fromBech32(asset.status.artistAddress),
-                          market: fromBech32(process.env.REACT_APP_MARTIFY_ADDRESS),
-                        },
-                        createTxUnspentOutput(contractAddress(contractVersion), assetUtxo),
-                        contractVersion
+                        txHash,
+                        wallet.data.address
                       );
 
-                      if (txHash) {
-                        
-                        const event = createEvent(
-                          MARKET_TYPE.PURCHASE,
-                          asset.status.datum,
-                          txHash,
-                          wallet.data.address
-                        );
 
-                        
-                        dispatch(setWalletLoading(false));
-                       
-                        callback({ success: true, type: MARKET_TYPE.PURCHASE });
-                      } else {
-                        callback({ success: false });
-                        dispatch(setWalletLoading(false));
-                        dispatch(
-                          set_error({
-                            message: resolveError("TRANSACTION_FAILED", "Purchasing Asset"),
-                            detail: null,
-                          })
-                        );
-                      }
+                      // dispatch(setWalletLoading(false));
+
+                      console.log({ success: true, type: MARKET_TYPE.PURCHASE, txHash });
                     } else {
-                      callback({ success: false });
-                      dispatch(setWalletLoading(false));
-                      dispatch(
-                        set_error({
-                          message: resolveError(
-                            "TRANSACTION_NOT_CONFIRMED",
-                            "Purchasing Asset"
-                          ),
-                          detail: null,
-                        })
-                      );
+                      console.log({ success: false });
+                      // dispatch(setWalletLoading(false));
+                      // dispatch(
+                      //   set_error({
+                      //     message: resolveError("TRANSACTION_FAILED", "Purchasing Asset"),
+                      //     detail: null,
+                      //   })
+                      // );
                     }
-                  } catch (error) {
-                    console.error(
-                      `Unexpected error in purchaseToken. [Message: ${error.message}]`
-                    );
-                    callback({ success: false });
-                    dispatch(setWalletLoading(false));
-                    dispatch(
-                      set_error({
-                        message: resolveError(error.message, "Purchasing Asset"),
-                        detail: error,
-                      })
-                    );
+                  } else {
+                    console.log({ success: false });
+                    // dispatch(setWalletLoading(false));
+                    // dispatch(
+                    //   set_error({
+                    //     message: resolveError(
+                    //       "TRANSACTION_NOT_CONFIRMED",
+                    //       "Purchasing Asset"
+                    //     ),
+                    //     detail: null,
+                    //   })
+                    // );
                   }
-                };
-                purchaseToken(
-                  { data: { address: this.state.changeAddress } }, { status: { datum: '' }, details: { asset: '' } }, () => { }
+                } catch (error) {
+                  console.error(
+                    `Unexpected error in purchaseToken. [Message: ${error.message}]`
+                  );
+                  console.log({ success: false });
+                  // dispatch(setWalletLoading(false));
+                  // dispatch(
+                  //   set_error({
+                  //     message: resolveError(error.message, "Purchasing Asset"),
+                  //     detail: error,
+                  //   })
+                  // );
+                }
 
-                )
-                // close(
-                //     'a89c237e2ef5ca2a6dde7ba62f6f06c1b4afb24cd55a7a1a048da34201'
-                // )
-                // bid(
-                //     'a89c237e2ef5ca2a6dde7ba62f6f06c1b4afb24cd55a7a1a048da342646967697261636b', {
-                //     bBuyer: toHex(sellerBaseAddress.payment_cred().to_keyhash().to_bytes()),
-                //     bBuyOffer: '10000000'
-                // }
-
-                // )
               }
               }>Run</button>
             </div>
