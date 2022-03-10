@@ -167,14 +167,18 @@ export const purchaseAsset = async (
 ) => {
   try {
     const { txBuilder, datums, outputs } = initializeTx();
-    const utxos = buyer.utxos.map((utxo) => serializeTxUnspentOutput(utxo));
+    
+    const utxos = buyer.utxos.map((utxo) => {console.log(utxo);
+      serializeTxUnspentOutput(utxo)});
 
     const purchaseAssetDatum = serializeSale(datum);
     datums.add(purchaseAssetDatum);
+    
 
     outputs.add(
       createTxOutput(buyer.address.to_address(), assetUtxo.output().amount())
     );
+    
 
     splitAmount(
       beneficiaries,
@@ -184,11 +188,12 @@ export const purchaseAsset = async (
       },
       outputs
     );
+    
 
     const requiredSigners = Cardano.Instance.Ed25519KeyHashes.new();
     requiredSigners.add(buyer.address.payment_cred().to_keyhash());
     txBuilder.set_required_signers(requiredSigners);
-
+    
     const txHash = await finalizeTx({
       txBuilder,
       utxos,
