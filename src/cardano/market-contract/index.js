@@ -175,8 +175,8 @@ export const purchaseAsset = async (
     );
     // console.log('------------------------------------');
     // console.log(utxos);
-    // console.log('------------------------------------');
-    // console.log(datum);
+     console.log('price------------------------------------');
+     console.log(datum.price);
     const purchaseAssetDatum = serializeSale(datum);
     datums.add(purchaseAssetDatum);
 
@@ -198,6 +198,7 @@ export const purchaseAsset = async (
     console.log(outputs.get(1).amount().coin().to_str());
     console.log(outputs.get(2).amount().coin().to_str());
     console.log(outputs.get(3).amount().coin().to_str());
+    console.log(outputs.get(3).address().to_bech32());
 
 
     const requiredSigners = Cardano.Instance.Ed25519KeyHashes.new();
@@ -272,6 +273,7 @@ const splitAmount = (
 
   const netPrice =
     price - royaltyFeePercentage * price - marketFeePercentage * price;
+    console.log(netPrice);
   outputs.add(
     createTxOutput(
       seller.to_address(),

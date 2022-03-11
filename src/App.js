@@ -29,7 +29,7 @@ import {
 import Wallet from "./cardano/wallet/index"
 import { getLockedUtxos, getAssetDetails, getTxMetadata, getLockedUtxosByAsset } from "./cardano/blockfrost-api"
 import { deserializeSale, serializeSale } from "./cardano/market-contract/datums"
-import { purchaseAsset, listAsset,cancelListing } from "./cardano/market-contract/index"
+import { purchaseAsset, listAsset, cancelListing } from "./cardano/market-contract/index"
 import { blake2b } from "blakejs";
 import { WALLET_STATE, MARKET_TYPE } from "./store/wallet/walletTypes";
 import {
@@ -39,6 +39,7 @@ import {
 } from "./store/wallet/walletActions";
 import { getWalletAssets } from "./store/wallet/api"
 import { getAssets } from "./database/assets"
+import Contracts from "./cardano/market-contract/plutus"
 let Buffer = require('buffer/').Buffer
 let blake = require('blakejs')
 
@@ -86,7 +87,9 @@ export default class App extends React.Component {
       saleDetails: undefined,
       datumHash: undefined,
       asset: undefined,
-      validAssets: []
+      validAssets: [],
+      tokenSale: '',
+      tokenForSale: ''
 
     }
 
@@ -531,29 +534,6 @@ export default class App extends React.Component {
         await this.getRewardAddresses();
         await this.getUsedAddresses();
         await Wallet.getAvailableWallets()
-        const listed = await getLockedUtxos('addr_test1wpupz00jfglpk2547x03s2mptq779w9u7fr92ha0x8g5kxq7pgcf2', {})
-        console.log(listed)
-        const index = 13
-        const asset = listed[index]['amount']['1']['unit']
-        // console.log(asset);
-        const assetDetails = await getAssetDetails(asset)
-        // console.log(assetDetails);
-        const txhash0 = listed[index]['tx_hash']
-        console.log(txhash0);
-        const txmetadata = await getTxMetadata(txhash0)
-        console.log(txmetadata);
-        const datumHash = listed[index]['data_hash']
-        console.log(datumHash);
-        //const datumhash0=await Cardano.Instance.ScriptDataHash.from_bytes(fromHex(datumhashraw0)).free()
-        // console.log(datumhash0);
-        const saleDetails = txmetadata["0"]["json_metadata"]
-        //console.log(saleDetails);
-        const datumSale = serializeSale(saleDetails)
-        //console.log(datumSale);
-        const verifyDetails = deserializeSale(datumSale)
-        console.log(verifyDetails);
-        console.log(assetDetails['policyId']);
-        console.log(assetDetails['assetName']);
         const walletAssets = await getWalletAssets()
         //console.log(walletAssets);
         const assets = (await getAssets(walletAssets)).reduce((map, asset) => {
@@ -570,9 +550,54 @@ export default class App extends React.Component {
           }
         }
         console.log(validAssets);
+        try {
+          const listed = await getLockedUtxos('addr_test1wqh7jekjmqcup4vwfaccs30rs6v7klczs3kkxzeypxf3v0cl5luuz', {})
+        console.log(listed)
+        const index = 0
+        const asset = listed[index]['amount']['1']['unit']
+        // console.log(asset);
+        const assetDetails = await getAssetDetails(asset)
+        // console.log(assetDetails);
+        const txhash0 = listed[index]['tx_hash']
+        console.log(txhash0);
+        const txmetadata = await getTxMetadata(txhash0)
+        console.log(txmetadata);
+        const datumHash = listed[index]['data_hash']
+        console.log(datumHash);
+        //const datumhash0=await Cardano.Instance.ScriptDataHash.from_bytes(fromHex(datumhashraw0)).free()
+        // console.log(datumhash0);
+        const saleDetails = txmetadata["0"]["json_metadata"]
+        const tokenForSale= saleDetails.tn
+        console.log(saleDetails);
+        console.log(tokenForSale);
+        const datumSale = serializeSale(saleDetails)
+        //console.log(datumSale);
+        const verifyDetails = deserializeSale(datumSale)
+        console.log(verifyDetails);
+        console.log(assetDetails['policyId']);
+        console.log(assetDetails['assetName']);
+        this.setState({
+          saleDetails, datumHash, asset, assetPolicyIdHex: assetDetails['policyId'], assetNameHex: assetDetails['assetName'], tokenForSale
+        })
+
+        } catch (error) {
+          console.error(
+            error
+          )
+
+        }
+        let tokenSale
+        if (validAssets.length > 0) {
+          tokenSale = `${validAssets[0].details.assetName}`
+        }
+        else {
+          tokenSale = ''
+        }
+
+
         // console.log(assets.valueOf());
         this.setState({
-          saleDetails, datumHash, asset, assetPolicyIdHex: assetDetails['policyId'], assetNameHex: assetDetails['assetName'], validAssets
+          validAssets, tokenSale
         })
       }
     } catch (err) {
@@ -622,6 +647,8 @@ export default class App extends React.Component {
   }
 
   render() {
+
+
 
     return (
       <div style={{ margin: "20px" }}>
@@ -727,136 +754,13 @@ export default class App extends React.Component {
               }>Cancel</button>
             </div>
           } />
-          <Tab id="3" title="3. Send ADA to Plutus Script" panel={
+          <Tab id="4" title="Send (Sell) Token to Plutus Script" panel={
             <div style={{ marginLeft: "20px" }}>
-              <FormGroup
-                helperText="insert a Script address where you want to send some ADA ..."
-                label="Script Address where to send ADA"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ addressScriptBech32: event.target.value })}
-                  value={this.state.addressScriptBech32}
+              <p style={{ paddingTop: "20px" }}><span style={{ fontWeight: "bold" }}>Token: </span>{`${fromHex(this.state.tokenSale)}`
+              }</p>
+              <p><span style={{ fontWeight: "bold" }}>Price: </span>{`${10000000}`}</p>
+              <p><span style={{ fontWeight: "bold" }}>Contract: </span>{`${Contracts["v3"].address}`}</p>
 
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Adjust Order Amount ..."
-                label="Lovelaces (1 000 000 lovelaces = 1 ADA)"
-                labelFor="order-amount-input2"
-              >
-                <NumericInput
-                  id="order-amount-input2"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.lovelaceToSend}
-                  min={1000000}
-                  stepSize={1000000}
-                  majorStepSize={1000000}
-                  onValueChange={(event) => this.setState({ lovelaceToSend: event })}
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="insert a Datum ..."
-                label="Datum that locks the ADA at the script address ..."
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ datumStr: event.target.value })}
-                  value={this.state.datumStr}
-
-                />
-              </FormGroup>
-              <button style={{ padding: "10px" }} onClick={this.buildSendAdaToPlutusScript}>Run</button>
-            </div>
-          } />
-          <Tab id="4" title="4. Send (Sell) Token to Plutus Script" panel={
-            <div style={{ marginLeft: "20px" }}>
-              <FormGroup
-                helperText="Script address where ADA is locked ..."
-                label="Script Address"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ addressScriptBech32: event.target.value })}
-                  value={this.state.addressScriptBech32}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Need to send ADA with Tokens ..."
-                label="Lovelaces (1 000 000 lovelaces = 1 ADA)"
-                labelFor="order-amount-input2"
-              >
-                <NumericInput
-                  id="order-amount-input2"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.lovelaceToSend}
-                  min={1000000}
-                  stepSize={1000000}
-                  majorStepSize={1000000}
-                  onValueChange={(event) => this.setState({ lovelaceToSend: event })}
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Make sure you have enough of Asset in your wallet ..."
-                label="Amount of Assets to Send"
-                labelFor="asset-amount-input"
-              >
-                <NumericInput
-                  id="asset-amount-input"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.assetAmountToSend}
-                  min={1}
-                  stepSize={1}
-                  majorStepSize={1}
-                  onValueChange={(event) => this.setState({ assetAmountToSend: event })}
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Hex of the Policy Id"
-                label="Asset PolicyId"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ assetPolicyIdHex: event.target.value })}
-                  value={this.state.assetPolicyIdHex}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Hex of the Asset Name"
-                label="Asset Name"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ assetNameHex: event.target.value })}
-                  value={this.state.assetNameHex}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="insert a Datum ..."
-                label="Datum that locks the ADA at the script address ..."
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ datumStr: event.target.value })}
-                  value={this.state.datumStr}
-
-                />
-              </FormGroup>
               <button style={{ padding: "10px" }} onClick={async () => {
                 const shelleyChangeAddress = Cardano.Instance.Address.from_bech32(this.state.changeAddress)
                 const sellerBaseAddress = Cardano.Instance.BaseAddress.from_address(shelleyChangeAddress)
@@ -864,8 +768,8 @@ export default class App extends React.Component {
                   data: { address: this.state.changeAddress }
                 }
 
-                const asset = this.state.validAssets[3]
-                //console.log(asset);
+                const asset = this.state.validAssets[0]
+                console.log(asset);
 
                 try {
                   await Wallet.getAvailableWallets()
@@ -914,162 +818,30 @@ export default class App extends React.Component {
 
 
 
-              }>Run</button>
+              }>Sell</button>
             </div>
           } />
-          <Tab id="6" title="6. Redeem Tokens (buy) from Plutus Script" panel={
+          <Tab id="6" title="Redeem Tokens (buy) from Plutus Script" panel={
             <div style={{ marginLeft: "20px" }}>
-              <FormGroup
-                helperText="Script address where ADA is locked ..."
-                label="Script Address"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ addressScriptBech32: event.target.value })}
-                  value={this.state.addressScriptBech32}
+              <p style={{ paddingTop: "20px" }}><span style={{ fontWeight: "bold" }}>Token: </span>{`${fromHex(this.state.tokenForSale)}`
+              }</p>
+              <p><span style={{ fontWeight: "bold" }}>Price: </span>{`${10000000}`}</p>
+              <p><span style={{ fontWeight: "bold" }}>Contract: </span>{`${Contracts["v3"].address}`}</p>
 
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="content of the plutus script encoded as CborHex ..."
-                label="Plutus Script CborHex"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ plutusScriptCborHex: event.target.value })}
-                  value={this.state.plutusScriptCborHex}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Transaction hash ... If empty then run n. 3 first to lock some ADA"
-                label="UTXO where ADA is locked"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ transactionIdLocked: event.target.value })}
-                  value={this.state.transactionIdLocked}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="UTXO IndexId#, usually it's 0 ..."
-                label="Transaction Index #"
-                labelFor="order-amount-input2"
-              >
-                <NumericInput
-                  id="order-amount-input2"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.transactionIndxLocked}
-                  min={0}
-                  stepSize={1}
-                  majorStepSize={1}
-                  onValueChange={(event) => this.setState({ transactionIndxLocked: event })}
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Adjust Order Amount ..."
-                label="Lovelaces (1 000 000 lovelaces = 1 ADA)"
-                labelFor="order-amount-input2"
-              >
-                <NumericInput
-                  id="order-amount-input2"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.lovelaceLocked}
-                  min={1000000}
-                  stepSize={1000000}
-                  majorStepSize={1000000}
-                  onValueChange={(event) => this.setState({ lovelaceLocked: event })}
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Make sure you have enough of Asset in your wallet ..."
-                label="Amount of Assets to Reedem"
-                labelFor="asset-amount-input"
-              >
-                <NumericInput
-                  id="asset-amount-input"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.assetAmountToSend}
-                  min={1}
-                  stepSize={1}
-                  majorStepSize={1}
-                  onValueChange={(event) => this.setState({ assetAmountToSend: event })}
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Hex of the Policy Id"
-                label="Asset PolicyId"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ assetPolicyIdHex: event.target.value })}
-                  value={this.state.assetPolicyIdHex}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Hex of the Asset Name"
-                label="Asset Name"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ assetNameHex: event.target.value })}
-                  value={this.state.assetNameHex}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="insert a Datum ..."
-                label="Datum that unlocks the ADA at the script address ..."
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ datumStr: event.target.value })}
-                  value={this.state.datumStr}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Needs to be enough to execute the contract ..."
-                label="Manual Fee"
-                labelFor="order-amount-input2"
-              >
-                <NumericInput
-                  id="order-amount-input2"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.manualFee}
-                  min={160000}
-                  stepSize={100000}
-                  majorStepSize={100000}
-                  onValueChange={(event) => this.setState({ manualFee: event })}
-                />
-              </FormGroup>
-              {/* <button style={{ padding: "10px" }} onClick={this.buildRedeemTokenFromPlutusScript}>Run</button> */}
               <button style={{ padding: "10px" }} onClick={async () => {
                 console.log('press');
                 const shelleyChangeAddress = Cardano.Instance.Address.from_bech32(this.state.changeAddress)
-                const sellerBaseAddress = Cardano.Instance.BaseAddress.from_address(shelleyChangeAddress)
+                const buyerBaseAddress = Cardano.Instance.BaseAddress.from_address(shelleyChangeAddress)
+                const sellerKeyhash = Cardano.Instance.Ed25519KeyHash.from_bytes(fromHex(this.state.saleDetails.sa))
+                console.log(sellerKeyhash);
+                const sellerCredential = sellerKeyhash.to_bech32('a')
+                console.log(sellerCredential);
 
 
                 const wallet = {
                   data: { address: this.state.changeAddress }
                 }
-                const asset = { status: { datum: this.state.saleDetails, datumHash: this.state.datumHash, submittedBy: this.state.changeAddress, artistAddress: this.state.changeAddress }, details: { asset: this.state.asset } }
+                const asset = { status: { datum: this.state.saleDetails, datumHash: this.state.datumHash, submittedBy: 'addr_test1qrc6fdexcnkmt9xau0e7yv9yaxyscd06klcme4nvj9c8d2gw9vs4u5282ymd67uf666yd6qldlmhn703qgt6lxcwk0qs7mps3y', artistAddress: 'addr_test1qrc6fdexcnkmt9xau0e7yv9yaxyscd06klcme4nvj9c8d2gw9vs4u5282ymd67uf666yd6qldlmhn703qgt6lxcwk0qs7mps3y' }, details: { asset: this.state.asset } }
 
                 try {
                   // console.log(wallet);
@@ -1129,7 +901,7 @@ export default class App extends React.Component {
                 }
 
               }
-              }>Run</button>
+              }>Buy</button>
             </div>
           } />
           <Tabs.Expander />
@@ -1144,7 +916,7 @@ export default class App extends React.Component {
 
 
 
-      </div>
+      </div >
     )
   }
 }
