@@ -78,16 +78,17 @@ export const finalizeTx = async ({
 }) => {
   const Parameters = getProtocolParameters();
   const transactionWitnessSet = Cardano.Instance.TransactionWitnessSet.new();
-  
+  console.log('pass1');
   CoinSelection.setProtocolParameters(
     Parameters.coinsPerUtxoWord,
     Parameters.linearFee.minFeeA,
     Parameters.linearFee.minFeeB,
     Parameters.maxTxSize.toString()
-  );
-
+    );
+    console.log(assetUtxo);
+  console.log(utxos);
   let inputs = [...utxos];
-
+  console.log(inputs);
   if (assetUtxo) {
     inputs.push(assetUtxo);
   }
@@ -119,10 +120,12 @@ export const finalizeTx = async ({
       Cardano.Instance.PlutusList.from_bytes(datums.to_bytes())
     );
     txBuilder.set_plutus_scripts(plutusScripts);
+    console.log('pass3');
+    await Wallet.getAvailableWallets()
     const collateral = (await Wallet.getCollateral()).map((utxo) =>
       Cardano.Instance.TransactionUnspentOutput.from_bytes(fromHex(utxo))
     );
-
+    console.log('pass4');
     setCollateral(txBuilder, collateral);
 
     transactionWitnessSet.set_plutus_scripts(plutusScripts);

@@ -29,7 +29,7 @@ import {
 import Wallet from "./cardano/wallet/index"
 import { getLockedUtxos, getAssetDetails, getTxMetadata, getLockedUtxosByAsset } from "./cardano/blockfrost-api"
 import { deserializeSale, serializeSale } from "./cardano/market-contract/datums"
-import { purchaseAsset } from "./cardano/market-contract/index"
+import { purchaseAsset,listAsset } from "./cardano/market-contract/index"
 import { blake2b } from "blakejs";
 import { WALLET_STATE, MARKET_TYPE } from "./store/wallet/walletTypes";
 import {
@@ -37,6 +37,8 @@ import {
   setWalletLoading,
   setWalletData,
 } from "./store/wallet/walletActions";
+import { getWalletAssets } from "./store/wallet/api"
+import { getAssets } from "./database/assets"
 let Buffer = require('buffer/').Buffer
 let blake = require('blakejs')
 
@@ -83,7 +85,8 @@ export default class App extends React.Component {
       aSellPrice: 10000000,
       saleDetails: undefined,
       datumHash: undefined,
-      asset: undefined
+      asset: undefined,
+      validAssets: []
 
     }
 
@@ -527,13 +530,14 @@ export default class App extends React.Component {
         await this.getChangeAddress();
         await this.getRewardAddresses();
         await this.getUsedAddresses();
+        await Wallet.getAvailableWallets()
         const listed = await getLockedUtxos('addr_test1wpupz00jfglpk2547x03s2mptq779w9u7fr92ha0x8g5kxq7pgcf2', {})
         console.log(listed)
-        const index=5
+        const index = 13
         const asset = listed[index]['amount']['1']['unit']
-        console.log(asset);
+       // console.log(asset);
         const assetDetails = await getAssetDetails(asset)
-        console.log(assetDetails);
+       // console.log(assetDetails);
         const txhash0 = listed[index]['tx_hash']
         console.log(txhash0);
         const txmetadata = await getTxMetadata(txhash0)
@@ -543,15 +547,32 @@ export default class App extends React.Component {
         //const datumhash0=await Cardano.Instance.ScriptDataHash.from_bytes(fromHex(datumhashraw0)).free()
         // console.log(datumhash0);
         const saleDetails = txmetadata["0"]["json_metadata"]
-        console.log(saleDetails);
+        //console.log(saleDetails);
         const datumSale = serializeSale(saleDetails)
-        console.log(datumSale);
+        //console.log(datumSale);
         const verifyDetails = deserializeSale(datumSale)
         console.log(verifyDetails);
         console.log(assetDetails['policyId']);
         console.log(assetDetails['assetName']);
+        const walletAssets = await getWalletAssets()
+        //console.log(walletAssets);
+        const assets = (await getAssets(walletAssets)).reduce((map, asset) => {
+          map[asset.details.asset] = asset;
+          return map;
+        }, {});
+        //console.log(assets);
+        let validAssets = []
+        for (const key in assets) {
+          if (Object.hasOwnProperty.call(assets, key)) {
+            validAssets.push(assets[key])
+
+
+          }
+        }
+        console.log(validAssets);
+        // console.log(assets.valueOf());
         this.setState({
-          saleDetails, datumHash, asset, assetPolicyIdHex: assetDetails['policyId'], assetNameHex: assetDetails['assetName']
+          saleDetails, datumHash, asset, assetPolicyIdHex: assetDetails['policyId'], assetNameHex: assetDetails['assetName'], validAssets
         })
       }
     } catch (err) {
@@ -639,40 +660,11 @@ export default class App extends React.Component {
         <hr style={{ marginTop: "40px", marginBottom: "40px" }} />
 
         <Tabs id="TabsExample" vertical={true} onChange={this.handleTabId} selectedTabId={this.state.selectedTabId}>
-          <Tab id="1" title="1. Send ADA to Address" panel={
+          <Tab id="1" title="My assets" panel={
             <div style={{ marginLeft: "20px" }}>
 
-              <FormGroup
-                helperText="insert an address where you want to send some ADA ..."
-                label="Address where to send ADA"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ addressBech32SendADA: event.target.value })}
-                  value={this.state.addressBech32SendADA}
 
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Adjust Order Amount ..."
-                label="Lovelaces (1 000 000 lovelaces = 1 ADA)"
-                labelFor="order-amount-input2"
-              >
-                <NumericInput
-                  id="order-amount-input2"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.lovelaceToSend}
-                  min={1000000}
-                  stepSize={1000000}
-                  majorStepSize={1000000}
-                  onValueChange={(event) => this.setState({ lovelaceToSend: event })}
-                />
-              </FormGroup>
 
-              <button style={{ padding: "10px" }} onClick={this.buildSendADATransaction}>Run</button>
             </div>
           } />
           <Tab id="2" title="2. Send Token to Address" panel={
@@ -865,123 +857,64 @@ export default class App extends React.Component {
 
                 />
               </FormGroup>
-              <button style={{ padding: "10px" }} onClick={() => {
+              <button style={{ padding: "10px" }} onClick={async () => {
                 const shelleyChangeAddress = Cardano.Instance.Address.from_bech32(this.state.changeAddress)
                 const sellerBaseAddress = Cardano.Instance.BaseAddress.from_address(shelleyChangeAddress)
-                // start(
-                //     { aSeller: toHex(sellerBaseAddress.payment_cred().to_keyhash().to_bytes()), aSellPrice: this.state.aSellPrice.toString(), aCurrency: this.state.assetPolicyIdHex, aToken: this.state.assetNameHex }
-                // )
+                const wallet = {
+                  data: { address: this.state.changeAddress }
+                }
+
+                const asset = this.state.validAssets[3]
+                //console.log(asset);
+
+                try {
+                  await Wallet.getAvailableWallets()
+                  // const collectionDetails = await getCollection(asset.details.policyId);
+                  const walletUtxos = await Wallet.getUtxos();
+
+                  const royaltiesAddress = wallet.data.address;
+                  const royaltiesPercentage = 0;
+                  const price =10;
+
+                  const datum = createDatum(
+                    asset.details.assetName,
+                    asset.details.policyId,
+                    wallet.data.address,
+                    royaltiesAddress,
+                    royaltiesPercentage,
+                    price
+                  );
+                  console.log(datum);
+
+                  const contractVersion = process.env.REACT_APP_MARTIFY_CONTRACT_VERSION;
+
+                  const listObj = await listAsset(
+                    datum,
+                    {
+                      address: fromBech32(wallet.data.address),
+                      utxos: walletUtxos,
+                    },
+                    contractVersion
+                  );
+
+                  if (listObj && listObj.datumHash && listObj.txHash) {
+                    console.log({ success: true, type: MARKET_TYPE.NEW_LISTING });
+                  } else {
+                    console.log({ success: false });
+                  }
+                } catch (error) {
+                  console.error(
+                    `Unexpected error in listToken. [Message: ${error.message}]`
+                  );
+                  console.log({ success: false });
+
+                }
+
               }
 
 
 
               }>Run</button>
-            </div>
-          } />
-          <Tab id="5" title="5. Redeem ADA from Plutus Script" panel={
-            <div style={{ marginLeft: "20px" }}>
-              <FormGroup
-                helperText="Script address where ADA is locked ..."
-                label="Script Address"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ addressScriptBech32: event.target.value })}
-                  value={this.state.addressScriptBech32}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="content of the plutus script encoded as CborHex ..."
-                label="Plutus Script CborHex"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ plutusScriptCborHex: event.target.value })}
-                  value={this.state.plutusScriptCborHex}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Transaction hash ... If empty then run n. 3 first to lock some ADA"
-                label="UTXO where ADA is locked"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ transactionIdLocked: event.target.value })}
-                  value={this.state.transactionIdLocked}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="UTXO IndexId#, usually it's 0 ..."
-                label="Transaction Index #"
-                labelFor="order-amount-input2"
-              >
-                <NumericInput
-                  id="order-amount-input2"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.transactionIndxLocked}
-                  min={0}
-                  stepSize={1}
-                  majorStepSize={1}
-                  onValueChange={(event) => this.setState({ transactionIndxLocked: event })}
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Adjust Order Amount ..."
-                label="Lovelaces (1 000 000 lovelaces = 1 ADA)"
-                labelFor="order-amount-input2"
-              >
-                <NumericInput
-                  id="order-amount-input2"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.lovelaceLocked}
-                  min={1000000}
-                  stepSize={1000000}
-                  majorStepSize={1000000}
-                  onValueChange={(event) => this.setState({ lovelaceLocked: event })}
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="insert a Datum ..."
-                label="Datum that unlocks the ADA at the script address ..."
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ datumStr: event.target.value })}
-                  value={this.state.datumStr}
-
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Needs to be enough to execute the contract ..."
-                label="Manual Fee"
-                labelFor="order-amount-input2"
-              >
-                <NumericInput
-                  id="order-amount-input2"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.manualFee}
-                  min={160000}
-                  stepSize={100000}
-                  majorStepSize={100000}
-                  onValueChange={(event) => this.setState({ manualFee: event })}
-                />
-              </FormGroup>
-              <button style={{ padding: "10px" }} onClick={this.buildRedeemAdaFromPlutusScript}>Run</button>
-              {/*<button style={{padding: "10px"}} onClick={this.signTransaction}>2. Sign Transaction</button>*/}
-              {/*<button style={{padding: "10px"}} onClick={this.submitTransaction}>3. Submit Transaction</button>*/}
             </div>
           } />
           <Tab id="6" title="6. Redeem Tokens (buy) from Plutus Script" panel={
@@ -1192,13 +1125,7 @@ export default class App extends React.Component {
                     `Unexpected error in purchaseToken. [Message: ${error.message}]`
                   );
                   console.log({ success: false });
-                  // dispatch(setWalletLoading(false));
-                  // dispatch(
-                  //   set_error({
-                  //     message: resolveError(error.message, "Purchasing Asset"),
-                  //     detail: error,
-                  //   })
-                  // );
+
                 }
 
               }

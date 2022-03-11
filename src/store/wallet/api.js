@@ -540,9 +540,10 @@ const getWalletAddress = async (usedAddresses) => {
   return usedAddresses[0];
 };
 
-const getWalletAssets = async () => {
+export const getWalletAssets = async () => {
+  await Wallet.getAvailableWallets()
   const utxos = await Wallet.getUtxos();
-
+  //console.log(utxos);
   const nativeAssets = utxos
     .map((utxo) => serializeTxUnspentOutput(utxo).output())
     .filter((txOut) => txOut.amount().multiasset() !== undefined)
