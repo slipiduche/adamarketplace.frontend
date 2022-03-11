@@ -85,16 +85,17 @@ export const finalizeTx = async ({
     Parameters.linearFee.minFeeB,
     Parameters.maxTxSize.toString()
     );
-    console.log(assetUtxo);
-  console.log(utxos);
+  //   console.log(assetUtxo);
+  // console.log(utxos);
   let inputs = [...utxos];
-  console.log(inputs);
+  // console.log(inputs);
   if (assetUtxo) {
     inputs.push(assetUtxo);
   }
 
   let { input, change } = CoinSelection.randomImprove(inputs, outputs, 16);
-
+  console.log(input[0].output().amount().coin().to_str());
+  console.log(input[1].output().amount().coin().to_str());
   input.forEach((utxo) => {
     txBuilder.add_input(
       utxo.output().address(),
@@ -122,9 +123,7 @@ export const finalizeTx = async ({
     txBuilder.set_plutus_scripts(plutusScripts);
     console.log('pass3');
     await Wallet.getAvailableWallets()
-    const collateral = (await Wallet.getCollateral()).map((utxo) =>
-      Cardano.Instance.TransactionUnspentOutput.from_bytes(fromHex(utxo))
-    );
+    const collateral = await Wallet.getCollateral()
     console.log('pass4');
     setCollateral(txBuilder, collateral);
 

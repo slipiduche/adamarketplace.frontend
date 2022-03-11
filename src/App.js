@@ -29,7 +29,7 @@ import {
 import Wallet from "./cardano/wallet/index"
 import { getLockedUtxos, getAssetDetails, getTxMetadata, getLockedUtxosByAsset } from "./cardano/blockfrost-api"
 import { deserializeSale, serializeSale } from "./cardano/market-contract/datums"
-import { purchaseAsset,listAsset } from "./cardano/market-contract/index"
+import { purchaseAsset, listAsset,cancelListing } from "./cardano/market-contract/index"
 import { blake2b } from "blakejs";
 import { WALLET_STATE, MARKET_TYPE } from "./store/wallet/walletTypes";
 import {
@@ -535,9 +535,9 @@ export default class App extends React.Component {
         console.log(listed)
         const index = 13
         const asset = listed[index]['amount']['1']['unit']
-       // console.log(asset);
+        // console.log(asset);
         const assetDetails = await getAssetDetails(asset)
-       // console.log(assetDetails);
+        // console.log(assetDetails);
         const txhash0 = listed[index]['tx_hash']
         console.log(txhash0);
         const txmetadata = await getTxMetadata(txhash0)
@@ -667,64 +667,64 @@ export default class App extends React.Component {
 
             </div>
           } />
-          <Tab id="2" title="2. Send Token to Address" panel={
+          <Tab id="2" title="Cancel sell" panel={
             <div style={{ marginLeft: "20px" }}>
 
-              <FormGroup
-                helperText="insert an address where you want to send some ADA ..."
-                label="Address where to send ADA"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ addressBech32SendADA: event.target.value })}
-                  value={this.state.addressBech32SendADA}
 
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Make sure you have enough of Asset in your wallet ..."
-                label="Amount of Assets to Send"
-                labelFor="asset-amount-input"
-              >
-                <NumericInput
-                  id="asset-amount-input"
-                  disabled={false}
-                  leftIcon={"variable"}
-                  allowNumericCharactersOnly={true}
-                  value={this.state.assetAmountToSend}
-                  min={1}
-                  stepSize={1}
-                  majorStepSize={1}
-                  onValueChange={(event) => this.setState({ assetAmountToSend: event })}
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Hex of the Policy Id"
-                label="Asset PolicyId"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ assetPolicyIdHex: event.target.value })}
-                  value={this.state.assetPolicyIdHex}
 
-                />
-              </FormGroup>
-              <FormGroup
-                helperText="Hex of the Asset Name"
-                label="Asset Name"
-              >
-                <InputGroup
-                  disabled={false}
-                  leftIcon="id-number"
-                  onChange={(event) => this.setState({ assetNameHex: event.target.value })}
-                  value={this.state.assetNameHex}
+              <button style={{ padding: "10px" }} onClick={async () => {
+                const shelleyChangeAddress = Cardano.Instance.Address.from_bech32(this.state.changeAddress)
+                const sellerBaseAddress = Cardano.Instance.BaseAddress.from_address(shelleyChangeAddress)
+                const wallet = {
+                  data: { address: this.state.changeAddress }
+                }
+                const asset = { status: { datum: this.state.saleDetails, datumHash: this.state.datumHash, submittedBy: this.state.changeAddress, artistAddress: this.state.changeAddress }, details: { asset: this.state.asset } }
 
-                />
-              </FormGroup>
 
-              <button style={{ padding: "10px" }} onClick={this.buildSendTokenTransaction}>Run</button>
+
+                try {
+                  await Wallet.getAvailableWallets()
+                  const walletUtxos = await Wallet.getUtxos();
+                  const contractVersion = "v3"
+
+                  const assetUtxo = (
+                    await getLockedUtxosByAsset(
+                      contractAddress(contractVersion).to_bech32(),
+                      asset.details.asset
+                    )
+                  ).find((utxo) => utxo.data_hash === asset.status.datumHash);
+
+                  if (assetUtxo) {
+                    const txHash = await cancelListing(
+                      asset.status.datum,
+                      {
+                        address: fromBech32(wallet.data.address),
+                        utxos: walletUtxos,
+                      },
+                      createTxUnspentOutput(contractAddress(contractVersion), assetUtxo),
+                      contractVersion
+                    );
+
+                    if (txHash) {
+                      console.log({ success: true, type: MARKET_TYPE.DELIST });
+                    } else {
+                      console.log({ success: false });
+
+                    }
+                  } else {
+                    console.log({ success: false });
+
+                  }
+                } catch (error) {
+                  console.error(
+                    `Unexpected error in delistToken. [Message: ${error.message}]`
+                  );
+                  console.log({ success: false });
+
+                }
+
+              }
+              }>Cancel</button>
             </div>
           } />
           <Tab id="3" title="3. Send ADA to Plutus Script" panel={
@@ -874,7 +874,7 @@ export default class App extends React.Component {
 
                   const royaltiesAddress = wallet.data.address;
                   const royaltiesPercentage = 0;
-                  const price =10;
+                  const price = 10;
 
                   const datum = createDatum(
                     asset.details.assetName,
@@ -1072,19 +1072,19 @@ export default class App extends React.Component {
                 const asset = { status: { datum: this.state.saleDetails, datumHash: this.state.datumHash, submittedBy: this.state.changeAddress, artistAddress: this.state.changeAddress }, details: { asset: this.state.asset } }
 
                 try {
-                  console.log(wallet);
-                  console.log(asset);
+                  // console.log(wallet);
+                  // console.log(asset);
                   await Wallet.getAvailableWallets()
                   const walletUtxos = await Wallet.getUtxos();
                   const contractVersion = "v3"//resolveContractVersion(asset);
-                  console.log(walletUtxos);
+                  // console.log(walletUtxos);
                   const assetUtxo = (
                     await getLockedUtxosByAsset(
                       contractAddress(contractVersion).to_bech32(),
                       asset.details.asset
                     )
                   ).find((utxo) => utxo.data_hash === asset.status.datumHash);
-                  console.log(assetUtxo);
+                  // console.log(assetUtxo);
                   if (assetUtxo) {
                     const txHash = await purchaseAsset(
                       asset.status.datum,
