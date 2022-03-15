@@ -17,10 +17,10 @@ module.exports = {
       const wasmLoader = {
         test: /\.wasm$/,
         exclude: /node_modules/,
-        loaders: ['wasm-loader'],
+        loader: require.resolve('wasm-loader'),
       };
 
-      addBeforeLoader(webpackConfig, loaderByName('file-loader'), wasmLoader);
+       addBeforeLoader(webpackConfig, loaderByName('babel-loader'), wasmLoader);
 
       return webpackConfig;
     },
