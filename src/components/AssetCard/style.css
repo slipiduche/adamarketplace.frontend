@@ -1,9 +1,0 @@
-.asset_card .card-image img{
-  object-fit: contain;
-}
-
-.clipped{
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
