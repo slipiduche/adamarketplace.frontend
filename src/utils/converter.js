@@ -10,6 +10,10 @@ export const fromBech32 = (bech32) =>
 export const fromHex = (hex) => Buffer.from(hex, "hex");
 
 export const toHex = (bytes) => Buffer.from(bytes).toString("hex");
+export const bytesToArray = (datumHex) => {
+  const datumList = datumHex.match(/.{1,64}/g);
+  return datumList;
+}
 
 export const fromLovelace = (lovelace) => lovelace / 1000000;
 

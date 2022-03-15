@@ -15,7 +15,7 @@ import { toHex } from "../../utils/converter";
 export const listAsset = async (
   datum,
   seller: { address: BaseAddress, utxos: [] },
-  version
+  version,sa32,ra32
 ) => {
   try {
     console.log('listing');
@@ -49,7 +49,7 @@ export const listAsset = async (
       utxos,
       outputs,
       changeAddress: seller.address,
-      metadata: deserializeSale(lockAssetDatum),
+      metadata: deserializeSale(lockAssetDatum),sa32,ra32
     });
     return {
       datumHash,
