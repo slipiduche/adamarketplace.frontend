@@ -25,6 +25,7 @@ import {
   toBytesNum,
   toHex,
   fromBech32,
+  arrayToBytes
 } from "./utils/converter";
 import { createEvent, createDatum } from "./utils/factory";
 import {
@@ -113,6 +114,8 @@ export default class App extends React.Component {
       validAssets: [],
       tokenSale: "",
       tokenForSale: "",
+      sellerAddress:undefined,
+      royaltiesAddress:undefined
     };
 
     /**
@@ -580,43 +583,56 @@ export default class App extends React.Component {
             validAssets.push(assets[key]);
           }
         }
-        console.log(validAssets);
+        // console.log(validAssets);
         try {
           const listed = await getLockedUtxos(
             "addr_test1wqh7jekjmqcup4vwfaccs30rs6v7klczs3kkxzeypxf3v0cl5luuz",
             {}
           );
-          console.log(listed);
+          // console.log(listed);
           const index = 0;
           const asset = listed[index]["amount"]["1"]["unit"];
           // console.log(asset);
           const assetDetails = await getAssetDetails(asset);
           // console.log(assetDetails);
           const txhash0 = listed[index]["tx_hash"];
-          console.log(txhash0);
+          console.log("txmetadata:");
           const txmetadata = await getTxMetadata(txhash0);
           console.log(txmetadata);
           const datumHash = listed[index]["data_hash"];
-          console.log(datumHash);
+          // console.log(datumHash);
           //const datumhash0=await Cardano.Instance.ScriptDataHash.from_bytes(fromHex(datumhashraw0)).free()
           // console.log(datumhash0);
           const saleDetails = txmetadata["0"]["json_metadata"];
+          const sellerAddressHex = txmetadata["1"]["json_metadata"];
+          //console.log(sellerAddressHex);
+          const sellerAddressBytes = arrayToBytes(sellerAddressHex.sa32);
+          //console.log(fromHex(sellerAddress));
+          const sellerAddress = Cardano.Instance.Address.from_bytes(fromHex(sellerAddressBytes))
+          
+          //console.log(sellerAddress.to_bech32());
+          const royaltiesAddressHex = txmetadata["2"]["json_metadata"];
+          const royaltiesAddressBytes = arrayToBytes(royaltiesAddressHex.ra32);
+          //console.log(fromHex(sellerAddress));
+          const royaltiesAddress = Cardano.Instance.Address.from_bytes(fromHex(royaltiesAddressBytes))
+          
+          //console.log(royaltyAddress.to_bech32());
           const tokenForSale = saleDetails.tn;
-          console.log(saleDetails);
-          console.log(tokenForSale);
+          // console.log(saleDetails);
+          // console.log(tokenForSale);
           const datumSale = serializeSale(saleDetails);
           //console.log(datumSale);
           const verifyDetails = deserializeSale(datumSale);
-          console.log(verifyDetails);
-          console.log(assetDetails["policyId"]);
-          console.log(assetDetails["assetName"]);
+          // console.log(verifyDetails);
+          // console.log(assetDetails["policyId"]);
+          // console.log(assetDetails["assetName"]);
           this.setState({
             saleDetails,
             datumHash,
             asset,
             assetPolicyIdHex: assetDetails["policyId"],
             assetNameHex: assetDetails["assetName"],
-            tokenForSale,
+            tokenForSale,royaltiesAddress,sellerAddress
           });
         } catch (error) {
           console.error(error);
@@ -916,7 +932,6 @@ export default class App extends React.Component {
                         contractVersion,
                         wallet.data.address,
                         royaltiesAddress
-
                       );
 
                       if (listObj && listObj.datumHash && listObj.txHash) {
@@ -974,21 +989,20 @@ export default class App extends React.Component {
                       Cardano.Instance.Ed25519KeyHash.from_bytes(
                         fromHex(this.state.saleDetails.sa)
                       );
-                    console.log(sellerKeyhash);
-                    const sellerCredential = sellerKeyhash.to_bech32("a");
-                    console.log(sellerCredential);
-
+                    
                     const wallet = {
                       data: { address: this.state.changeAddress },
                     };
+                    const submittedBy=this.state.sellerAddress.to_bech32()
+                    const artistAddress=this.state.royaltiesAddress.to_bech32()
                     const asset = {
                       status: {
                         datum: this.state.saleDetails,
                         datumHash: this.state.datumHash,
                         submittedBy:
-                          "addr_test1qrc6fdexcnkmt9xau0e7yv9yaxyscd06klcme4nvj9c8d2gw9vs4u5282ymd67uf666yd6qldlmhn703qgt6lxcwk0qs7mps3y",
+                          this.state.sellerAddress.to_bech32(),
                         artistAddress:
-                          "addr_test1qrc6fdexcnkmt9xau0e7yv9yaxyscd06klcme4nvj9c8d2gw9vs4u5282ymd67uf666yd6qldlmhn703qgt6lxcwk0qs7mps3y",
+                          this.state.royaltiesAddress.to_bech32(),
                       },
                       details: { asset: this.state.asset },
                     };

@@ -3,7 +3,7 @@ import CoinSelection from "./coinSelection";
 import ErrorTypes from "./error.types";
 import Wallet from "../wallet";
 import { languageViews } from "./languageViews";
-import { fromHex, toHex ,bytesToArray} from "../../utils/converter";
+import { fromHex, toHex, bytesToArray } from "../../utils/converter";
 
 export const assetsToValue = (assets) => {
   const multiAsset = Cardano.Instance.MultiAsset.new();
@@ -74,17 +74,19 @@ export const finalizeTx = async ({
   metadata,
   action,
   assetUtxo,
-  plutusScripts,sa32,ra32
+  plutusScripts,
+  sa32,
+  ra32,
 }) => {
   const Parameters = getProtocolParameters();
   const transactionWitnessSet = Cardano.Instance.TransactionWitnessSet.new();
-  console.log('pass1');
+  console.log("pass1");
   CoinSelection.setProtocolParameters(
     Parameters.coinsPerUtxoWord,
     Parameters.linearFee.minFeeA,
     Parameters.linearFee.minFeeB,
     Parameters.maxTxSize.toString()
-    );
+  );
   //   console.log(assetUtxo);
   // console.log(utxos);
   let inputs = [...utxos];
@@ -121,10 +123,10 @@ export const finalizeTx = async ({
       Cardano.Instance.PlutusList.from_bytes(datums.to_bytes())
     );
     txBuilder.set_plutus_scripts(plutusScripts);
-    console.log('pass3');
-    await Wallet.getAvailableWallets()
-    const collateral = await Wallet.getCollateral()
-    console.log('pass4');
+    console.log("pass3");
+    await Wallet.getAvailableWallets();
+    const collateral = await Wallet.getCollateral();
+    console.log("pass4");
     setCollateral(txBuilder, collateral);
 
     transactionWitnessSet.set_plutus_scripts(plutusScripts);
@@ -141,15 +143,34 @@ export const finalizeTx = async ({
       Cardano.Instance.BigNum.from_str("100"),
       Cardano.Instance.encode_json_str_to_metadatum(JSON.stringify(metadata), 1)
     );
-    
-    
+
     generalMetadata.insert(
       Cardano.Instance.BigNum.from_str("406"),
-      Cardano.Instance.encode_json_str_to_metadatum(JSON.stringify({sa32:bytesToArray("0x" + toHex(sa32))}), 1)
+      Cardano.Instance.encode_json_str_to_metadatum(
+        JSON.stringify({
+          sa32: bytesToArray(
+            "0x" +
+              toHex(
+               Cardano.Instance.Address.from_bech32(sa32).to_bytes()
+              )
+          ),
+        }),
+        1
+      )
     );
     generalMetadata.insert(
       Cardano.Instance.BigNum.from_str("407"),
-      Cardano.Instance.encode_json_str_to_metadatum(JSON.stringify({ra32:bytesToArray("0x" + toHex(ra32))}), 1)
+      Cardano.Instance.encode_json_str_to_metadatum(
+        JSON.stringify({
+          ra32: bytesToArray(
+            "0x" +
+              toHex(
+                Cardano.Instance.Address.from_bech32(ra32).to_bytes()
+              )
+          ),
+        }),
+        1
+      )
     );
 
     aux_data.set_metadata(generalMetadata);
@@ -157,7 +178,7 @@ export const finalizeTx = async ({
   }
 
   const changeMultiAssets = change.multiasset();
-  console.log('is too big?');
+  console.log("is too big?");
   // check if change value is too big for single output
   if (
     changeMultiAssets &&
@@ -217,7 +238,7 @@ export const finalizeTx = async ({
   } catch (error) {
     throw new Error("INPUTS_EXHAUSTED");
   }
-  console.log('building body');
+  console.log("building body");
   const txBody = txBuilder.build();
 
   const tx = Cardano.Instance.Transaction.new(
@@ -257,7 +278,7 @@ export const createTxOutput = (address, value, { datum } = {}) => {
   );
 
   if (minAda.compare(value.coin()) === 1) value.set_coin(minAda);
-  console.log('creating');
+  console.log("creating");
   const output = Cardano.Instance.TransactionOutput.new(address, value);
 
   if (datum) {

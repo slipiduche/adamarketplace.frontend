@@ -14,6 +14,14 @@ export const bytesToArray = (datumHex) => {
   const datumList = datumHex.match(/.{1,64}/g);
   return datumList;
 }
+export const arrayToBytes = (metadataArray) => {
+  let datum = "";
+  metadataArray.map(item => {
+      datum += item;
+  })
+  datum = datum.slice(2); // Remove 0x which signifies a hex value
+  return datum;
+}
 
 export const fromLovelace = (lovelace) => lovelace / 1000000;
 
