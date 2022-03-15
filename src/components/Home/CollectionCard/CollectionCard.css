@@ -1,0 +1,8 @@
+.collection_card{
+    transition: all 0.3s ease-in-out;
+}
+
+.collection_card:hover{
+    transform: translateY(-5px);
+    box-shadow: rgb(38, 57, 77) 0px 20px 30px -10px;
+}

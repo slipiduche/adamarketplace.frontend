@@ -1,0 +1,7 @@
+.painting_card{
+    transition: all 0.3s ease-in-out;
+    cursor: pointer;
+}
+.painting_card:hover{
+    transform: scale(1.02);
+}

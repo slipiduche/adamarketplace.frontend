@@ -1,0 +1,11 @@
+.blue_button{
+    background: #414FCF;
+    border-radius: 15px;
+    transition: all 0.3s ease-in-out;
+}
+
+.blue_button:hover{
+    background: #3542be;
+    transform: scale(1.01) translateY(-4px);
+}
+

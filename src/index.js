@@ -1,35 +1,18 @@
-import React from "react";
-import ReactDOM from "react-dom";
-import { BrowserRouter as Router } from "react-router-dom";
-
-// redux store
-import { composeWithDevTools } from "redux-devtools-extension";
-import { Provider } from "react-redux";
-import { createStore, applyMiddleware } from "redux";
-import reduxThunk from "redux-thunk";
-import reducers from "./store/reducers";
-
-import WebFont from 'webfontloader';
-
-import App from "./App";
-
-const middleware = [reduxThunk];
-const store = createStore(
-  reducers,
-  composeWithDevTools(applyMiddleware(...middleware))
-);
-
-WebFont.load({
-  google: {
-    families: ['Titillium Web:300,400,700', 'sans-serif', 'Pacifico', 'cursive']
-  }
-});
+import React from 'react';
+import ReactDOM from 'react-dom';
+import './index.css';
+import App from './App';
+// import 'tw-elements';
+import reportWebVitals from './reportWebVitals';
 
 ReactDOM.render(
-  <Provider store={store}>
-    <Router>
-      <App />
-    </Router>
-  </Provider>,
-  document.getElementById("root")
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+  document.getElementById('root')
 );
+
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+reportWebVitals();

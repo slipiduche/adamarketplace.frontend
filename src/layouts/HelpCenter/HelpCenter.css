@@ -1,0 +1,6 @@
+.help_center_cover{
+    background-image: url('../../images/helpcenter/background.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+}
